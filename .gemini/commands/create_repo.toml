@@ -1,0 +1,29 @@
+description = "Creates a new GitHub repository with a specified name."
+
+prompt = """
+# AI Agent Instructions: GitHub Repository Creation
+
+## Objective
+Create a new GitHub repository and set up its initial structure, including a README file.
+
+**ARGUMENTS:** $ARGUMENTS
+
+---
+
+### Phase 1: Repository Initialization
+1.  Use the GitHub tool to perform the following:
+    * Create a new **public** GitHub repository with the name: `{repo_name}`. command -  `gh repo create <repo_name> --public --source=. --push`
+    * Initialize the repository with a basic main branch and a license.
+
+### Phase 2: Initial Commit and README
+1.  Create an initial commit in the `{repo_name}` repository.
+2.  Add a file named 'README.md' to the root directory.
+3.  Populate the 'README.md' file with the following Markdown content:
+
+    
+    ---
+    This project was initiated by Yaksh Gandhi (@yaksh1).
+    Find me on GitHub: https://github.com/yaksh1
+    Find me on LinkedIn: https://www.linkedin.com/in/yakshgandhi/
+
+"""
