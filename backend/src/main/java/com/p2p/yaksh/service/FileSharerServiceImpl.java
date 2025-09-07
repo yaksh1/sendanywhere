@@ -15,53 +15,67 @@ import java.util.HashMap;
  * This class is responsible for providing the functionality 
  * required to share files in a peer-to-peer network.
  */
-
 @RequiredArgsConstructor
 @Slf4j
 public class FileSharerServiceImpl implements FileSharerService {
-    // Hashmap of <port (port number where that file is available),filepath>
-    private HashMap<Integer,String> availableFiles;
+    // A HashMap to store available files with their corresponding port numbers.
+    // Key: Port number, Value: File path
+    private HashMap<Integer, String> availableFiles;
 
-
+    /**
+     * Offers a file for sharing by associating it with an available port.
+     * Tries to find an unused port and maps it to the provided file path.
+     *
+     * @param filepath the path of the file to be shared
+     * @return the port number on which the file is being offered
+     * @throws RuntimeException if an available port cannot be found after a maximum number of attempts
+     */
     @Override
     public int offerFiles(String filepath) {
-        // We'll give it a good number of tries, but not forever.
-        // Adjust this value as needed.
+        // Maximum number of attempts to find an available port
         final int MAX_ATTEMPTS = 100;
 
         for (int i = 0; i < MAX_ATTEMPTS; i++) {
-            int port = UploadUtils.generateCode();
+            int port = UploadUtils.generateCode(); // Generate a random port number
 
-            // This check is a race condition risk in a multi-threaded app.
-            // It's better to use a thread-safe map or a synchronized block.
-            // For a simple fix, let's keep it and note the risk.
+            // Check if the port is already in use
             if (!availableFiles.containsKey(port)) {
-                availableFiles.put(port, filepath);
-                return port;
+                availableFiles.put(port, filepath); // Map the port to the file path
+                return port; // Return the available port
             }
         }
-        // If we've tried MAX_ATTEMPTS times and failed, throw an exception.
-        // This makes it clear that something went wrong.
+        // Throw an exception if no available port is found after MAX_ATTEMPTS
         throw new RuntimeException("Failed to find an available port after " + MAX_ATTEMPTS + " attempts.");
     }
 
+    /**
+     * Starts a file server on the specified port to allow clients to download the file.
+     * The file to be served is determined based on the port.
+     *
+     * @param port the port number on which the file server will run
+     * @throws IllegalArgumentException if no file is associated with the given port
+     * @throws RuntimeException if an I/O error occurs while starting the server
+     */
     @Override
     public void startFileServer(int port) {
-        // Implementation for starting a file server on the given port.
-        // This could involve setting up a socket, binding to the port,
-        // and listening for incoming connections to serve files.
+        // Retrieve the file path associated with the given port
         String filepath = availableFiles.get(port);
         if (filepath == null) {
+            // Throw an exception if no file is associated with the port
             throw new IllegalArgumentException("No file available for the given port: " + port);
         }
-        try(ServerSocket serverSocket = new ServerSocket(port)){
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            // Log the start of the file server
             log.info("File server started on port: " + port + " for file: " + new File(filepath).getName());
-            // Add logic to handle incoming connections and serve the file.
+
+            // Wait for a client to connect
             Socket clientSocket = serverSocket.accept();
             log.info("Client connected: " + clientSocket.getInetAddress());
-            // Serve the file to the client...
+
+            // Start a new thread to handle file transfer for the connected client
             new Thread(new FileTransferHandler(clientSocket, filepath)).start();
         } catch (IOException e) {
+            // Throw a runtime exception if an I/O error occurs
             throw new RuntimeException("Error starting file server on port " + port + ": " + e.getMessage());
         }
     }
