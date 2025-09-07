@@ -1,51 +1,68 @@
 package com.p2p.yaksh.service;
 
+import com.p2p.yaksh.utils.UploadUtils;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.HashMap;
+
 /**
  * Implementation of the FileSharerService interface.
  * This class is responsible for providing the functionality 
  * required to share files in a peer-to-peer network.
  */
+
+@RequiredArgsConstructor
+@Slf4j
 public class FileSharerServiceImpl implements FileSharerService {
+    // Hashmap of <port (port number where that file is available),filepath>
+    private HashMap<Integer,String> availableFiles;
 
-    /**
-     * Shares a file with a specified peer.
-     *
-     * @param filePath The path of the file to be shared.
-     * @param peerId The unique identifier of the peer with whom the file is to be shared.
-     * @return true if the file was successfully shared, false otherwise.
-     */
+
     @Override
-    public boolean shareFile(String filePath, String peerId) {
-        // Check if the file path or peer ID is null or empty
-        if (filePath == null || filePath.isEmpty() || peerId == null || peerId.isEmpty()) {
-            return false; // Return false if inputs are invalid
+    public int offerFiles(String filepath) {
+        // We'll give it a good number of tries, but not forever.
+        // Adjust this value as needed.
+        final int MAX_ATTEMPTS = 100;
+
+        for (int i = 0; i < MAX_ATTEMPTS; i++) {
+            int port = UploadUtils.generateCode();
+
+            // This check is a race condition risk in a multi-threaded app.
+            // It's better to use a thread-safe map or a synchronized block.
+            // For a simple fix, let's keep it and note the risk.
+            if (!availableFiles.containsKey(port)) {
+                availableFiles.put(port, filepath);
+                return port;
+            }
         }
-
-        // Logic to locate the file and establish a connection with the peer
-        // (Implementation details would depend on the specific requirements)
-
-        // Simulate successful file sharing
-        return true;
+        // If we've tried MAX_ATTEMPTS times and failed, throw an exception.
+        // This makes it clear that something went wrong.
+        throw new RuntimeException("Failed to find an available port after " + MAX_ATTEMPTS + " attempts.");
     }
 
-    /**
-     * Retrieves a file shared by another peer.
-     *
-     * @param fileName The name of the file to be retrieved.
-     * @param peerId The unique identifier of the peer from whom the file is to be retrieved.
-     * @return The content of the file as a byte array, or null if the file cannot be retrieved.
-     */
     @Override
-    public byte[] retrieveFile(String fileName, String peerId) {
-        // Check if the file name or peer ID is null or empty
-        if (fileName == null || fileName.isEmpty() || peerId == null || peerId.isEmpty()) {
-            return null; // Return null if inputs are invalid
+    public void startFileServer(int port) {
+        // Implementation for starting a file server on the given port.
+        // This could involve setting up a socket, binding to the port,
+        // and listening for incoming connections to serve files.
+        String filepath = availableFiles.get(port);
+        if (filepath == null) {
+            throw new IllegalArgumentException("No file available for the given port: " + port);
         }
-
-        // Logic to connect to the peer and retrieve the file
-        // (Implementation details would depend on the specific requirements)
-
-        // Simulate file retrieval by returning a placeholder byte array
-        return new byte[0];
+        try(ServerSocket serverSocket = new ServerSocket(port)){
+            log.info("File server started on port: " + port + " for file: " + new File(filepath).getName());
+            // Add logic to handle incoming connections and serve the file.
+            Socket clientSocket = serverSocket.accept();
+            log.info("Client connected: " + clientSocket.getInetAddress());
+            // Serve the file to the client...
+            new Thread(new FileTransferHandler(clientSocket, filepath)).start();
+        } catch (IOException e) {
+            throw new RuntimeException("Error starting file server on port " + port + ": " + e.getMessage());
+        }
     }
 }

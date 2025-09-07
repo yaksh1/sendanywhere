@@ -5,5 +5,6 @@ package com.p2p.yaksh.service;
  * Implementing classes should provide the logic for sharing files in a peer-to-peer system.
  */
 public interface FileSharerService {
-
+    public int offerFiles(String filepath);
+    public void startFileServer(int port);
 }
